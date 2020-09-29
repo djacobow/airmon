@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-import time, serial, threading, queue, json, datetime, csv
-from flask import Flask, jsonify
-import adafruit_pm25
+import time, serial, threading, queue, datetime, csv
+import pms5003
 import aqi
 
+import webapp
 
 
 class AirMonitor():
@@ -13,7 +13,7 @@ class AirMonitor():
         self.keep_unharvesting = True
         self.uart = serial.Serial("/dev/serial0", baudrate=9600, timeout=0.25)
         reset_pin = None
-        self.pm25 = adafruit_pm25.PM25_UART(self.uart, reset_pin)
+        self.pm25 = pms5003.PM25_UART(self.uart, reset_pin)
         self.dq = queue.Queue()
         self.epochs = (
             {
@@ -145,46 +145,13 @@ class AirMonitor():
         while self.keep_unharvesting:
             aqdata = self.dq.get()
             aqdata['aqi'] = int(aqi.to_iaqi(aqi.POLLUTANT_PM25, aqdata['pm25_standard']).to_integral())
-            now = datetime.datetime.now()
+            now = datetime.datetime.now(datetime.timezone.utc)
             self.update_history(now, aqdata)
 
 
-
-class WebApp():
-    def __init__(self, am):
-        self.app = Flask(__name__)
-        self.am = am
-        self.app.route('/data')(self.ww_data)
-        self.app.route('/')(self.ww_index)
-        self.app.route('/tableizer.js')(self.ww_js)
-        self.app.route('/style.css')(self.ww_css)
-
-    def run(self):
-        self.app.run(debug=False, host='0.0.0.0')
-
-    def splat(self,fn):
-        try:
-            with open(fn,'r') as ifh:
-                return ifh.read()
-        except:
-            return None
-
-    def ww_data(self):
-        return jsonify(self.am.getHistory())
-
-    def ww_index(self):
-        return self.splat('static/index.html')
-
-    def ww_js(self):
-        return self.splat('static/tableizer.js')
-
-    def ww_css(self):
-        return self.splat('static/style.css')
-
 if __name__ == '__main__':
-    app = Flask(__name__)
     am = AirMonitor()
-    wa = WebApp(am)
+    wa = webapp.WebApp(am)
 
     am.start()
     wa.run()

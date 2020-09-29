@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the airmon server
+
+[Service]
+ExecStart=/home/pi/airmon/monitor.py
+WorkingDirectory=/home/pi/airmon
+Restart=on-failure
+RestartSec=60s
+User=pi
+
+[Install]
+WantedBy=multi-user.target

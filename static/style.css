@@ -1,0 +1,60 @@
+body {
+    font-family: "Verdana", "Arial", "sans-serif";
+    background-color: #c0e0f0;
+}
+
+div.bannerdiv {
+    padding: 20px;
+    width: 100%;
+    font-size: 200%;
+    text-align: center;
+}
+
+div.maindiv {
+}
+
+div.groupdiv {
+    width: 90%;
+    background-color: #ffe0e0;
+    padding: 10px;
+    margin-top: 50px;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 10px;
+}
+
+div.groupheader {
+    padding: 10px;
+    text-align: center;
+    font-size: 150%;
+}
+
+div.groupsubheader {
+    text-align: center;
+    font-size: 65%;
+}
+
+table.grouptable {
+    width: 100%;	 
+}
+
+table.grouptable th {
+    text-align: left;
+}
+table.grouptable td {
+    text-align: left;
+}
+
+table.grouptable tr:nth-child(even) {
+    background-color: #ffe0f0;
+}
+table.grouptable tr:nth-child(odd) {
+    background-color: #fff0e0;
+}
+
+td.datetd {
+    font-size: 75%;
+}
+td.heading {
+    font-weight: bold;
+}

@@ -1,26 +1,12 @@
 #!/usr/bin/env python3
 
-import time, json, datetime
+import time, json
 import flask
-
-class JSONEncoderWithGMTDates(json.JSONEncoder):
-    def default(self, obj):
-        try:
-            if isinstance(obj,datetime.datetime):
-                return obj.isoformat()
-            iterable = iter(obj)
-        except TypeError:
-            pass
-        else:
-                return list(iterable)
-
-        return json.JSONEncoder.default(self, obj)
-
+import dateencoder
 
 class WebApp():
     def __init__(self, am):
         self.app = flask.Flask(__name__)
-        self.app.json_encoder = JSONEncoderWithGMTDates
         self.am = am
         self.app.route('/data')(self.ww_data)
         self.app.route('/')(self.ww_index)
@@ -38,7 +24,7 @@ class WebApp():
             return None
 
     def ww_data(self):
-        return flask.Response(json.dumps(self.am.getHistory(),cls=JSONEncoderWithGMTDates), mimetype='application/json')
+        return flask.Response(dateencoder.toJS(self.am.getHistory()), mimetype='application/json')
 
     def ww_index(self):
         return self.splat('static/index.html')

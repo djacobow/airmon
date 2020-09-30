@@ -73,6 +73,57 @@ function formatDate(d) {
     return d0;	   
 }
 
+function getModalDelta(data) {        
+    var last_time = null;
+    var delta_dict = {};
+    data.forEach((datum) => {
+        var time = Date.parse(datum.time);
+        var delta = 0;
+        if (last_time != null) {
+            delta = 1000 * Math.floor(((time - last_time) / 1000) + 0.5);
+	}
+        if (delta in delta_dict) {
+            delta_dict[delta] += 1;
+	} else {
+            delta_dict[delta] = 1;
+	}
+        last_time = time;
+    });
+
+    var modal_delta = Object.keys(delta_dict).reduce((a,b) => delta_dict[a] > delta_dict[b] ? a : b);
+
+    if (delta_dict[modal_delta] >= 2) {
+        return parseInt(modal_delta);
+    }
+    return null;
+}
+
+function marshallDataAndInsertGaps(data) {        
+    var chartdata = [];
+    var last_time = null;
+
+    var modal_delta = getModalDelta(data);
+
+    data.forEach((datum) => {
+        var dv = datum.obs.aqi;
+        var time = Date.parse(datum.time);
+        if (dv.avg != null) {
+            dv = dv.avg;
+        }
+        if ((modal_delta != null) && 
+            (last_time != null)) {
+            var this_delta = 1000 * Math.floor(((time - last_time) / 1000) + 0.5);
+            if (this_delta > modal_delta) {
+                chartdata.push({ 'x': last_time + modal_delta, 'y': null });
+            }
+        }
+        chartdata.push({ 'x': time, 'y': dv });
+        last_time = time;
+    });
+    return chartdata;
+}
+
+
 function makeGroup_table(target, name, data) {
     
     if (data.length) {
@@ -129,14 +180,19 @@ function makeGroup_table(target, name, data) {
 
         var chartd = cr('div');
         chartd.className = 'ct-chart ct-major-sixth';
-        var chartdata = data.map((datum) => {
-            var dv = datum.obs.aqi;
-            if (dv.avg != null) {
-                dv = dv.avg;
-            }
-            return { 'x': Date.parse(datum.time), 'y': dv }
-	});
 
+        var chartdata = marshallDataAndInsertGaps(data);
+
+function marshallDataIgnoreGaps(data) {
+    var chartdata = data.map((datum) => {
+        var dv = datum.obs.aqi;
+        if (dv.avg != null) {
+            dv = dv.avg;
+        }
+        return { 'x': Date.parse(datum.time), 'y': dv }
+    });
+    return chartdata;
+}
         target.appendChild(chartd);
         var chart = new Chartist.Line(chartd, {
             series: [

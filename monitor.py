@@ -4,7 +4,7 @@ import time, serial, threading, queue, datetime, csv
 import pms5003
 import aqi
 
-import webapp
+import webapp, dateencoder
 
 
 class AirMonitor():
@@ -15,6 +15,7 @@ class AirMonitor():
         reset_pin = None
         self.pm25 = pms5003.PM25_UART(self.uart, reset_pin)
         self.dq = queue.Queue()
+        self.history_fn = 'history.json'
         self.epochs = (
             {
                 'name': 'second',
@@ -29,6 +30,7 @@ class AirMonitor():
                 'max_len': 60,
                 'precursor_len': 60,
                 'detector': lambda t: t.second == 0,
+                'after_functions': [self.writeDB, self.writeAQI],
             },
             {
                 'name': '10minute',
@@ -53,9 +55,14 @@ class AirMonitor():
             },
         )
 
-        self.histdata = {}
-        for e in self.epochs:
-            self.histdata[e['name']] = []
+        try:
+            self.histdata = dateencoder.fromJS(self.history_fn)
+        except Exception as e:
+            print(f'Could not load history from {self.history_fn} because: {repr(e)}')
+            print(f'Starting without history instead') 
+            self.histdata = {}
+            for e in self.epochs:
+                self.histdata[e['name']] = []
 
         try:
             self.ofh = open('aqdata.csv','a+')
@@ -77,6 +84,14 @@ class AirMonitor():
         self.hthread.join()
         self.uthread.join()
         print('All done.')
+
+    def writeDB(self, now):
+        try:
+            d = self.getHistory()
+            with open(self.history_fn,'w') as ofh:
+                ofh.write(dateencoder.toJS(d))
+        except Exception as e:
+            print(f'-Error- Could not write history file: {self.history_fn} because {repr(e)}')
 
     def harvest(self):
         while self.keep_harvesting:
@@ -132,20 +147,24 @@ class AirMonitor():
                 if len(self.histdata[ename]) > e['max_len']:
                     self.histdata[ename].pop(0)
 
-                if ename == 'minute':
-                    if len(self.histdata['minute']):
-                        mindata = self.histdata['minute'][-1]['obs']
-                        #print('mindata',mindata)
-                        darry = [ mindata[x]['avg'] for x in ('aqi',) + self.aqfields ]
-                        self.csvwriter.writerow([str(now)] + darry)
-                        self.ofh.flush()
+                cb_fns = e.get('after_functions',[])
+                for cb_fn in cb_fns:
+                    cb_fn(now)
+
+    def writeAQI(self, now):
+        if len(self.histdata['minute']):
+            mindata = self.histdata['minute'][-1]['obs']
+            #print('mindata',mindata)
+            darry = [ mindata[x]['avg'] for x in ('aqi',) + self.aqfields ]
+            self.csvwriter.writerow([str(now)] + darry)
+            self.ofh.flush()
 
 
     def unharvest(self):
         while self.keep_unharvesting:
             aqdata = self.dq.get()
             aqdata['aqi'] = int(aqi.to_iaqi(aqi.POLLUTANT_PM25, aqdata['pm25_standard']).to_integral())
-            now = datetime.datetime.now(datetime.timezone.utc)
+            now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
             self.update_history(now, aqdata)
 
 

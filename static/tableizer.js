@@ -123,6 +123,42 @@ function marshallDataAndInsertGaps(data) {
     return chartdata;
 }
 
+function marshallDataIgnoreGaps(data) {
+    var chartdata = data.map((datum) => {
+        var dv = datum.obs.aqi;
+        if (dv.avg != null) {
+            dv = dv.avg;
+        }
+        return { 'x': Date.parse(datum.time), 'y': dv }
+    });
+    return chartdata;
+}
+
+function tDeltaToHMS(tdelta) {
+    var secs    = Math.floor(tdelta/1000);
+    var days_f  = secs / (60 * 60 * 24);
+    var days_i  = Math.floor(days_f);
+    var hours_f = 24 * (days_f - days_i);
+    var hours_i = Math.floor(hours_f);
+    var minutes_f = 60 * (hours_f - hours_i);
+    var minutes_i = Math.floor(minutes_f);
+    var seconds_f = 60 * (minutes_f - minutes_i);
+    var seconds_i = Math.floor(seconds_f);
+    chunks = [];
+    if (days_i) {
+        chunks.push(days_i.toString() + 'd');
+    }
+    if (hours_i) {
+        chunks.push(hours_i.toString() + 'h');
+    }
+    if (minutes_i) {
+        chunks.push(minutes_i.toString() + 'm')
+    }
+    if (seconds_i) {
+        chunks.push(seconds_i.toString() + 's')
+    }
+    return chunks.join(', ');
+}
 
 function makeGroup_table(target, name, data) {
     
@@ -182,17 +218,10 @@ function makeGroup_table(target, name, data) {
         chartd.className = 'ct-chart ct-major-sixth';
 
         var chartdata = marshallDataAndInsertGaps(data);
+        var time_span = chartdata[chartdata.length-1]['x'] - chartdata[0]['x']
+        var time_span_str = tDeltaToHMS(time_span);
+        subheader.innerText = `(${chartdata.length} measurements, spanning ${time_span_str})`;
 
-function marshallDataIgnoreGaps(data) {
-    var chartdata = data.map((datum) => {
-        var dv = datum.obs.aqi;
-        if (dv.avg != null) {
-            dv = dv.avg;
-        }
-        return { 'x': Date.parse(datum.time), 'y': dv }
-    });
-    return chartdata;
-}
         target.appendChild(chartd);
         var chart = new Chartist.Line(chartd, {
             series: [
